@@ -1,0 +1,511 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>UVCCM Registration System (URS)</title>
+
+  <!-- Supabase CDN (must be loaded before we call createClient) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    :root{
+      --green:#1e7a1e;
+      --light-green:#2bb673;
+      --yellow:#f3c13a;
+      --bg:#f7f9f6;
+      --card:#ffffff;
+      --muted:#666;
+      font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, Arial;
+    }
+
+    body{
+      margin:0;
+      background: linear-gradient(180deg, #eaf9ea 0%, #f7fff7 100%);
+      color:#072;
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+    }
+
+    .wrap{
+      max-width:1100px;
+      margin:28px auto;
+      padding:18px;
+    }
+
+    header{
+      display:flex;
+      align-items:center;
+      gap:14px;
+      margin-bottom:18px;
+    }
+    .logo{
+      width:60px;
+      height:60px;
+      border-radius:12px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      color:white;
+      background:linear-gradient(135deg,var(--green),var(--light-green));
+      font-weight:800;
+      font-size:18px;
+      box-shadow:0 6px 18px rgba(2,50,10,0.06);
+    }
+    header h1{margin:0;font-size:20px}
+    header .sub{color:var(--muted);font-size:13px}
+
+    /* center column layout */
+    .center-col{display:grid; place-items:center; padding:24px}
+
+    .card{
+      width:400px;
+      background:var(--card);
+      border-radius:12px;
+      padding:20px;
+      box-shadow:0 8px 30px rgba(2,50,10,0.06);
+      border-left:6px solid var(--green);
+    }
+
+    h2{margin:6px 0 12px; color:var(--green); text-align:center}
+
+    label{display:block; font-size:13px; margin-top:8px; color:#234}
+    input[type="text"], input[type="password"], input[type="number"], select{
+      width:100%;
+      padding:10px 12px;
+      margin-top:6px;
+      border-radius:8px;
+      border:1px solid #e0e0e0;
+      font-size:14px;
+      box-sizing:border-box;
+    }
+
+    .row{display:flex; gap:10px}
+    .row .col{flex:1}
+
+    .btn{
+      width:100%;
+      padding:11px 12px;
+      border-radius:8px;
+      border:none;
+      background:var(--green);
+      color:white;
+      font-weight:700;
+      margin-top:12px;
+      cursor:pointer;
+      box-shadow:0 6px 12px rgba(2,50,10,0.06);
+    }
+    .btn.secondary{
+      background:transparent;
+      color:var(--green);
+      border:1px solid var(--light-green);
+      font-weight:600;
+    }
+
+    .small{font-size:13px;color:var(--muted); margin-top:8px; text-align:center}
+
+    /* loading indicator */
+    .loading{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:8px;
+      margin-top:10px;
+      color:var(--yellow);
+      font-weight:700;
+    }
+    .dot{width:8px;height:8px;border-radius:50%;background:var(--yellow);opacity:0.9; animation: blink 1s infinite;}
+    @keyframes blink{0%{opacity:0.2}50%{opacity:1}100%{opacity:0.2}}
+
+    /* dashboard (list) */
+    .dashboard{
+      width:100%;
+      margin-top:20px;
+      display:none;
+    }
+    .summary{display:flex; gap:12px; margin-bottom:12px}
+    .stat{flex:1; padding:12px; border-radius:10px; background:linear-gradient(90deg,#fff,#f6fff6); box-shadow:0 6px 12px rgba(2,50,10,0.04)}
+    .stat h4{margin:0;color:var(--muted); font-size:13px}
+    .stat p{margin:6px 0 0; font-weight:800; color:#0b3c0b}
+
+    table{width:100%; border-collapse:collapse; margin-top:12px}
+    th, td{padding:10px; border-bottom:1px solid #eee; text-align:left}
+    th{background:linear-gradient(90deg,var(--yellow),var(--green)); color:#072; font-weight:800}
+    .table-wrap{max-height:380px; overflow:auto; margin-top:8px; border-radius:8px}
+
+    footer{margin-top:18px;color:var(--muted); font-size:13px}
+    @media(max-width:460px){
+      .card{width:92%}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="logo">URS</div>
+      <div>
+        <h1>UVCCM Registration System (URS)</h1>
+        <div class="sub">System ya kujisajili wanafunzi wa mwaka wa kwanza </div>
+      </div>
+    </header>
+
+    <div class="center-col">
+      <!-- LOGIN CARD (design A style as requested) -->
+      <div class="card" id="loginCard">
+        <h2>Login</h2>
+
+        <label for="loginUsername">Username</label>
+        <input id="loginUsername" type="text" placeholder="msajili username">
+
+        <label for="loginPassword">Password</label>
+        <input id="loginPassword" type="password" placeholder="password">
+
+        <button class="btn" id="loginBtn">Login</button>
+
+        <div id="loginLoading" class="loading" style="display:none">
+          <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+          <div style="margin-left:8px">Authenticating...</div>
+        </div>
+
+        <p id="loginError" class="small" style="color:#a00"></p>
+
+        <p class="small">(copyright @uvccm cive 2025)</p>
+      </div>
+
+      <!-- Main dashboard & student registration (hidden until login) -->
+      <div id="mainArea" style="display:none; width: 100%; max-width:900px; margin-top:18px;">
+        <div style="display:flex; gap:18px; align-items:flex-start; flex-wrap:wrap">
+          <!-- left: register form -->
+          <div style="flex:0 0 380px;">
+            <div class="card">
+              <h2 style="font-size:18px;margin-bottom:8px">Register Student</h2>
+
+              <label>Full name</label>
+              <input id="s_full_name" type="text" placeholder="Jina kamili">
+
+              <label>Course</label>
+              <select id="s_course">
+                <option value="">-- pick course --</option>
+                <option>CNISE</option>
+                <option>CSDFE</option>
+                <option>CS</option>
+                <option>IS</option>
+                <option>HIS</option>
+                <option>DCBE</option>
+                <option>CE</option>
+                <option>TE</option>
+                <option>SE</option>
+              </select>
+
+              <div class="row">
+                <div class="col">
+                  <label>Years</label>
+                  <input id="s_years" type="number" min="1" max="6" value="3">
+                </div>
+                <div class="col">
+                  <label>Block</label>
+                  <input id="s_block" type="text" placeholder="Block">
+                </div>
+              </div>
+
+              <label>Gender</label>
+              <select id="s_gender">
+                <option value="">-- select gender --</option>
+                <option>Male</option>
+                <option>Female</option>
+              </select>
+
+              <label>Room</label>
+              <input id="s_room" type="text" placeholder="Room number">
+
+              <label>Phone number</label>
+              <input id="s_phone" type="text" placeholder="e.g. 2557XXXXXXXX">
+
+              <button class="btn" id="saveStudentBtn">Save Student</button>
+
+              <div id="saveLoading" class="loading" style="display:none">
+                <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+                <div style="margin-left:8px">Saving...</div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- right: summary + table -->
+          <div style="flex:1; min-width:380px;">
+            <div class="card dashboard" id="dashboardCard" style="display:block;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h3 style="margin:0">Overview</h3>
+                <div>
+                  <button class="btn secondary" id="refreshBtn" style="padding:8px 12px; border-radius:8px;">Refresh</button>
+                  <button class="btn secondary" id="logoutBtn" style="padding:8px 12px; border-radius:8px; margin-left:8px;">Logout</button>
+                </div>
+              </div>
+
+              <div class="summary" style="margin-top:12px">
+                <div class="stat"><h4>Total Registered</h4><p id="stat_total">0</p></div>
+                <div class="stat"><h4>Male</h4><p id="stat_male">0</p></div>
+                <div class="stat"><h4>Female</h4><p id="stat_female">0</p></div>
+              </div>
+
+              <div style="margin-top:12px">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <h4 style="margin:0">All Registered Students</h4>
+                  <div class="small">Latest first</div>
+                </div>
+
+                <div class="table-wrap">
+                  <table id="studentsTable" aria-live="polite">
+                    <thead>
+                      <tr><th>Name</th><th>Course</th><th>Years</th><th>Block</th><th>Diet</th><th>Gender</th><th>Room</th><th>Phone</th><th>Registered</th></tr>
+                    </thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <footer class="small">UVCCM URS — demo. For production use Supabase Auth or server-side hashed passwords.</footer>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ---------------------------
+    // CONFIG - replace with your values
+    // ---------------------------
+    const SUPABASE_URL = "https://pnpjfaalcvetdjbcuadj.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBucGpmYWFsY3ZldGRqYmN1YWRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMyMjM5NTYsImV4cCI6MjA3ODc5OTk1Nn0.5AmOhm_ATsZTX1Vkg5_XHKEytVVpBsGCfATM4dqWlOo";
+
+    // ---------------------------
+    // init client (safe pattern)
+    // ---------------------------
+    const { createClient } = supabase;
+    const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // DOM refs
+    const loginBtn = document.getElementById('loginBtn');
+    const loginLoading = document.getElementById('loginLoading');
+    const loginError = document.getElementById('loginError');
+
+    const loginUsername = document.getElementById('loginUsername');
+    const loginPassword = document.getElementById('loginPassword');
+
+    const mainArea = document.getElementById('mainArea');
+    const loginCard = document.getElementById('loginCard');
+
+    const saveStudentBtn = document.getElementById('saveStudentBtn');
+    const saveLoading = document.getElementById('saveLoading');
+
+    const refreshBtn = document.getElementById('refreshBtn');
+    const logoutBtn = document.getElementById('logoutBtn');
+
+    const studentsTableBody = document.querySelector('#studentsTable tbody');
+    const statTotal = document.getElementById('stat_total');
+    const statMale = document.getElementById('stat_male');
+    const statFemale = document.getElementById('stat_female');
+
+    // helper loading toggle
+    function show(el){ el.style.display = 'flex' }
+    function hide(el){ el.style.display = 'none' }
+
+    // --- Login handler ---
+    loginBtn.addEventListener('click', async ()=>{
+      loginError.textContent = '';
+      const u = loginUsername.value.trim();
+      const p = loginPassword.value;
+
+      if(!u || !p){ loginError.textContent = 'Enter username & password'; return; }
+
+      show(loginLoading);
+      loginBtn.disabled = true;
+
+      try{
+        // NOTE: this demo expects admins table with columns: username, password (plain text)
+        const { data, error } = await db
+          .from('admins')
+          .select('*')
+          .eq('username', u)
+          .eq('password', p)
+          .limit(1)
+          .maybeSingle();
+
+        hide(loginLoading);
+        loginBtn.disabled = false;
+
+        if(error){
+          console.error('Login error', error);
+          loginError.textContent = 'Login error. Check console.';
+          return;
+        }
+
+        if(!data){
+          loginError.textContent = 'Wrong username or password';
+          return;
+        }
+
+        // success -> show main area
+        loginCard.style.display = 'none';
+        mainArea.style.display = 'block';
+
+        // fetch students immediately
+        refreshStudents();
+
+      }catch(err){
+        console.error(err);
+        hide(loginLoading);
+        loginBtn.disabled = false;
+        loginError.textContent = 'Unexpected error';
+      }
+    });
+
+    // --- Save student ---
+    saveStudentBtn.addEventListener('click', async ()=>{
+      // gather fields
+      const full_name = document.getElementById('s_full_name').value.trim();
+      const course = document.getElementById('s_course').value;
+      const years_of_study = Number(document.getElementById('s_years').value) || null;
+      const block = document.getElementById('s_block').value.trim();
+      const gender = document.getElementById('s_gender').value;
+      const room = document.getElementById('s_room').value.trim();
+      const phone_number = document.getElementById('s_phone').value.trim();
+
+      // basic validation
+      if(!full_name){ alert('Full name required'); return; }
+      if(!course){ alert('Choose a course'); return; }
+      if(!years_of_study){ alert('Enter years of study'); return; }
+      if(!gender){ alert('Select gender'); return; }
+
+      saveStudentBtn.disabled = true;
+      show(saveLoading);
+
+      try{
+        const payload = {
+          full_name,
+          course,
+          years_of_study,
+          block,
+          gender,
+          room,
+          phone_number
+        };
+
+        const { data, error } = await db.from('students').insert([payload]).select().single();
+
+        hide(saveLoading);
+        saveStudentBtn.disabled = false;
+
+        if(error){
+          console.error('Insert error', error);
+          alert('Error saving student. See console.');
+          return;
+        }
+
+        alert('Student saved');
+        // clear form
+        document.getElementById('s_full_name').value = '';
+        document.getElementById('s_course').value = '';
+        document.getElementById('s_years').value = 3;
+        document.getElementById('s_block').value = '';
+        document.getElementById('s_gender').value = '';
+        document.getElementById('s_room').value = '';
+        document.getElementById('s_phone').value = '';
+
+        // refresh table
+        refreshStudents();
+
+      }catch(ex){
+        console.error(ex);
+        hide(saveLoading);
+        saveStudentBtn.disabled = false;
+        alert('Unexpected error saving student (check console)');
+      }
+    });
+
+    // --- Refresh / retrieve students ---
+    refreshBtn.addEventListener('click', refreshStudents);
+
+    async function refreshStudents(){
+      refreshBtn.disabled = true;
+      refreshBtn.textContent = 'Refreshing...';
+      try{
+        const { data, error } = await db.from('students').select('*').order('created_at', { ascending: false });
+
+        if(error){
+          console.error('Fetch students error', error);
+          alert('Error loading students (see console)');
+          refreshBtn.disabled = false;
+          refreshBtn.textContent = 'Refresh';
+          return;
+        }
+
+        renderStudents(data || []);
+      }catch(e){
+        console.error(e);
+        alert('Unexpected error fetching students');
+      }finally{
+        refreshBtn.disabled = false;
+        refreshBtn.textContent = 'Refresh';
+      }
+    }
+
+    // render students list and summary
+    function renderStudents(list){
+      studentsTableBody.innerHTML = '';
+      let maleCount = 0;
+      let femaleCount = 0;
+      for(const s of list){
+        const tr = document.createElement('tr');
+        const registered = s.created_at ? new Date(s.created_at).toLocaleString() : '';
+        tr.innerHTML = `
+          <td>${escapeHtml(s.full_name)}</td>
+          <td>${escapeHtml(s.course)}</td>
+          <td>${escapeHtml(s.years_of_study)}</td>
+          <td>${escapeHtml(s.block||'')}</td>
+          <td>${''}</td>
+          <td>${escapeHtml(s.gender||'')}</td>
+          <td>${escapeHtml(s.room||'')}</td>
+          <td>${escapeHtml(s.phone_number||'')}</td>
+          <td>${registered}</td>
+        `;
+        studentsTableBody.appendChild(tr);
+
+        if(String(s.gender).toLowerCase()==='male') maleCount++;
+        if(String(s.gender).toLowerCase()==='female') femaleCount++;
+      }
+      statTotal.textContent = list.length;
+      statMale.textContent = maleCount;
+      statFemale.textContent = femaleCount;
+    }
+
+    // escape helper
+    function escapeHtml(text){
+      if(text === null || text === undefined) return '';
+      return String(text).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    // logout
+    logoutBtn.addEventListener('click', ()=>{
+      if(!confirm('Logout?')) return;
+      // simple UI logout (not auth signout)
+      mainArea.style.display = 'none';
+      loginCard.style.display = 'block';
+      loginUsername.value = '';
+      loginPassword.value = '';
+      // clear table
+      studentsTableBody.innerHTML = '';
+      statTotal.textContent = '0';
+      statMale.textContent = '0';
+      statFemale.textContent = '0';
+    });
+
+    // small UX: allow Enter on login
+    loginPassword.addEventListener('keyup', (e)=>{ if(e.key === 'Enter') loginBtn.click(); });
+    loginUsername.addEventListener('keyup', (e)=>{ if(e.key === 'Enter') loginBtn.click(); });
+
+  </script>
+</body>
+</html>
